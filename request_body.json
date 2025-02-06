@@ -1,0 +1,7 @@
+{
+    "level": "critical",
+    "type": "open_port",
+    "message": "Port 22 open in host 192.142.1.1",
+    "host": "192.142.1.1",
+    "port": "22"
+}
