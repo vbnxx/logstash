@@ -1,0 +1,10 @@
+[
+        {
+            "hostname": "S1",
+            "ip_address": "192.168.0.2"
+        }, 
+        {
+            "hostname": "R1",
+            "ip_address": "192.168.0.1"
+        }
+]
