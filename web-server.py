@@ -10,6 +10,12 @@ PORT=3999
 ROOMID = "Y2lzY29zcGFyazovL3VybjpURUFNOmV1LWNlbnRyYWwtMV9rL1JPT00vZTBjYzlmMzAtZWRmZC0xMWVmLThhMDQtMDVhN2ZkMjgxODQ5"
 TOKEN = "Bearer MTY3MDhmYTMtOWUyYS00MzJmLTkwZDAtYTFjZTFkMzUwM2MzNjdmNjE1ZTEtYzBk_PE93_bde28e3d-21ec-426e-b7f1-1c7280ca363f"
 
+#handle json files
+def json_load(file: str) -> list:
+    with open(file, 'r') as f:
+        return json.load(f)
+
+#create connection to a specified device based on the IP address
 def netmiko_connection(ip_address: str) -> BaseConnection:
     ssh_connection = None
     try:
@@ -24,20 +30,22 @@ def netmiko_connection(ip_address: str) -> BaseConnection:
         print("Could not connect to ip address: %s" % ip_address)
     return ssh_connection
 
+#retrieve IP address based on the hostname from the log 
 def get_hostname(log: str) -> str:
     hostname = log.split(' ')[3]
-    with open('devices.json', 'r') as file:
-        content = json.load(file)
-        for i in content:
-            if hostname in i.values():
-                return i['ip_address']
+    content = json_load('devices.json')
+    for i in content:
+        if hostname in i.values():
+            return i['ip_address']
 
+#retrieve interface from the log message
 def get_interface(log: str) -> str:
     x = re.findall("Interface.+[1-24]", log)
     if x:
         interface = ''.join(x).strip().lower()
     return interface
 
+#send message to cisco webex
 def send_message(message: str, receiver: str, authorization: str) -> dict:
     url = "https://webexapis.com/v1/messages"
     payload = MultipartEncoder({
@@ -49,6 +57,15 @@ def send_message(message: str, receiver: str, authorization: str) -> dict:
         }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
+
+#retrieve IP address based on the mac address from the log 
+def mac_to_ip(log: str) -> str:
+    mac = log.split(' ')[-1]
+    #opens a file which contains hostname to IP address mappings
+    content = json_load('devices.json')
+    for i in content:
+        if mac in i.values():
+            return i['ip_address']
 
 def shut_int(log):
     ip_address = get_hostname(log)
@@ -71,16 +88,27 @@ def up_int(log):
     ssh_connection.enable()
     ssh_connection.send_config_set(["{}".format(interface), "no shutdown"])
     ssh_connection.exit_config_mode()
-    check_status = ssh_connection.send_command('show ip int brief | include Loopback1')
-    if "down" not in check_status: 
+    check_status = ssh_connection.send_command('show ip int brief | include {}'.format(interface))
+    if "up" not in check_status: 
         error_message = "Could not turn up {0} on a device {1}".format(interface, ip_address)
         send_message(error_message, ROOMID, TOKEN)
     else:
         print('Turning up  "%s".' % (interface))
 
-def STP_config(host, port):
-    # send an action here to the library
-    print('Restoring STP config on "%s:%s".' % (host, port))
+def STP_config(log):
+    ip = mac_to_ip(log)
+    if not ip:
+        content = json_load('devices.json')
+        switches = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
+        for device in switches:
+            #creating connection to each switch
+            ssh_connection = netmiko_connection(device[0])
+            stp_info = ssh_connection.send_command("show spanning-tree")
+            n_bridge = re.search("Bridge.+(\d)").split()[3]
+            if n_bridge != device[1]:
+                ssh_connection.send_config_set(["spanning-tree vlan 1 priority {0}".format(device[1])])
+                message = "Set STP priority back to {0} on {1}".format(device[1], device[0])
+                send_message(message, ROOMID, TOKEN)
 
 def NTP(host, port):
     # send an action here to the library
@@ -93,8 +121,8 @@ def DHCP(host, port):
 events_and_actions = {
     'state to up' : shut_int,
     'state to down': up_int,
-    'STP' : STP_config,
-    'NTP' : NTP,
+    'Root bridge' : STP_config,
+    'synchronized to NTP' : NTP,
     'DHCP' : DHCP
 }
 

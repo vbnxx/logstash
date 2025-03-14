@@ -1,10 +1,25 @@
 [
         {
             "hostname": "S1",
-            "ip_address": "192.168.0.2"
+            "ip_address": "192.168.0.2",
+            "mac_address": "abcd:efgh:ijkl:mnop",
+            "bridge_priority": "4096"
+        },
+        {
+            "hostname": "S2",
+            "ip_address":"192.168.0.3",
+            "mac_address": "iiii:jjjj:dddd:ssss",
+            "bridge_priority": "32768"
+        },
+        {
+            "hostname": "S3",
+            "ip_address":"192.168.0.4",
+            "mac_address": "abcd:efgh:ijkl:mnoa",
+            "bridge_priority": "32768"
         }, 
         {
             "hostname": "R1",
-            "ip_address": "192.168.0.1"
+            "ip_address": "192.168.0.1",
+            "mac_address": "eeee:ffff:gggg:hhhh"
         }
 ]

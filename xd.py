@@ -10,7 +10,11 @@ log_templates = [
     "%LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/2, changed state to down",
     "%SEC_LOGIN-4-LOGIN_FAILED: Login failed from 192.168.1.50",
     "%SYS-2-MALLOCFAIL: Memory allocation failure - process OSPF",
-    "%SPANTREE-6-PORTBLOCKED: Port 1/0/1 blocked by spanning tree"
+    "%SPANTREE-6-PORTBLOCKED: Port 1/0/1 blocked by spanning tree",
+    "%NTP-6-SYNC: Clock is synchronized to NTP server 192.168.1.100",
+    "%SPANTREE-6-TOPOLOGY_CHANGE: STP topology change detected on VLAN 1",
+    "%STP-5-PORTSTATE: GigabitEthernet0/1 changed state to forwarding",
+    "%SPANTREE-6-ROOTCHANGE: Root bridge for VLAN 1 changed to 32768:00:1A:2B:3C:4D:5E",
 ]
 
 def generate_log():
