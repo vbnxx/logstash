@@ -65,17 +65,24 @@ def mac_to_ip(log: str) -> str:
     content = json_load('devices.json')
     for i in content:
         if mac in i.values():
-            return i['ip_address']
+            return (i['ip_address'], mac)
+        else:
+            return None
 
 def shut_int(log):
     ip_address = get_hostname(log)
     interface = get_interface(log)
+    #creating connection to a device
     ssh_connection = netmiko_connection(ip_address)
     ssh_connection.enable()
+    #sending set of commands to shutdown a specific interface 
     ssh_connection.send_config_set(["{}".format(interface), "shutdown"])
+    #exiting config mode
     ssh_connection.exit_config_mode()
+    #using show ip int brief, check whether the specified interfece actually went down
     check_status = ssh_connection.send_command('show ip int brief | include {}'.format(interface))
     if "down" not in check_status: 
+        #in case the interface didnt go down send message to cisco webex
         error_message = "Could not turn down {0} on a device {1}".format(interface, ip_address)
         send_message(error_message, ROOMID, TOKEN)
     else:
@@ -84,27 +91,34 @@ def shut_int(log):
 def up_int(log):
     ip_address = get_hostname(log)
     interface = get_interface(log)
+    #creating connection to a device
     ssh_connection = netmiko_connection(ip_address)
     ssh_connection.enable()
+    #sending set of commands to put up a specific interface
     ssh_connection.send_config_set(["{}".format(interface), "no shutdown"])
+    #exiting config mode
     ssh_connection.exit_config_mode()
+    #using show ip int brief, check whether the specified interfece actually is up
     check_status = ssh_connection.send_command('show ip int brief | include {}'.format(interface))
     if "up" not in check_status: 
+        #in case the interface isn't up send message to cisco webex
         error_message = "Could not turn up {0} on a device {1}".format(interface, ip_address)
         send_message(error_message, ROOMID, TOKEN)
     else:
         print('Turning up  "%s".' % (interface))
 
 def STP_config(log):
+    #checking if the mac address of a device that is root bridge now is in a topology
     ip = mac_to_ip(log)
     if not ip:
         content = json_load('devices.json')
+        #retrieving IP addresses and bridge priorities of all switches in the topology
         switches = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
         for device in switches:
             #creating connection to each switch
             ssh_connection = netmiko_connection(device[0])
             stp_info = ssh_connection.send_command("show spanning-tree")
-            n_bridge = re.search("Bridge.+(\d)").split()[3]
+            n_bridge = re.search("Bridge.+(\d)", stp_info).split()[3]
             if n_bridge != device[1]:
                 ssh_connection.send_config_set(["spanning-tree vlan 1 priority {0}".format(device[1])])
                 message = "Set STP priority back to {0} on {1}".format(device[1], device[0])

@@ -69,15 +69,44 @@ def mac_to_ip(log: str) -> str:
         if mac in i.values():
             return i['ip_address']
 
+def load_topology():
+    content = json_load('devices.json')
+    dic = {}
 
+    for device in content:
+        dic[device['hostname']] = device['ip_address']
 
+    return dic
 
-"""
-stp
 
 ip = mac_to_ip(log_s)
 if not ip:
-    content = json_load('devices.json')
+    switches = load_topology()
+    curr_ip_address = switches['S1']
+    while True:
+        ssh_connection = netmiko_connection(curr_ip_address)
+        stp_info = ssh_connection.send_command("show spanning-tree")
+        sp_output = stp_info.split('\n')
+        cost = sp_output[4].strip().split()[1]
+        port = sp_output[5].strip().split()[1]
+        next_interface = "Fas0/"+port[0:port.index('(')]
+        next_interface1 = "Fa0/"+port[0:port.index('(')]
+        if int(cost) in {2,4,19,100}:
+            ssh_connection.enable()
+            ssh_connection.send_config_set(["interface {}".format(next_interface1), "spanning-tree guard root"])
+            break
+        else:
+            neighbors = ssh_connection.send_command("show cdp neighbors")
+            neighbor_interfaces = neighbors.split('\n')[3:]
+            for i in neighbor_interfaces:
+                int1= ''.join(i.split()[1:3])
+                if int1 == next_interface:
+                    #returns the hostname of the switch it needs to connect next
+                    hostname = i.split()[0]
+                    curr_ip_address = switches[hostname]
+
+    
+    """content = json_load('devices.json')
     x = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
     for device in x:
        #creating connection to my VM router in the final version it will look: ssh_connection = netmiko_connection(ip_address)
@@ -88,6 +117,8 @@ if not ip:
             ssh_connection.send_config_set(["spanning-tree vlan 1 priority {0}".format(device[1])])
             message = "Set STP priority back to {0} on {1}".format(device[1], device[0])
             send_message(message, ROOMID, TOKEN)"""
+
+
 
 """
 int up/down
