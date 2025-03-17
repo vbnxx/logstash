@@ -69,6 +69,15 @@ def mac_to_ip(log: str) -> str:
         else:
             return None
 
+def load_topology() -> dict:
+    content = json_load('devices.json')
+    dic = {}
+
+    for device in content:
+        dic[device['hostname']] = device['ip_address']
+
+    return dic
+
 def shut_int(log):
     ip_address = get_hostname(log)
     interface = get_interface(log)
@@ -108,17 +117,55 @@ def up_int(log):
         print('Turning up  "%s".' % (interface))
 
 def STP_config(log):
-    #checking if the mac address of a device that is root bridge now is in a topology
     ip = mac_to_ip(log)
+    #if mac address wasn't in the topology
     if not ip:
+        #create hostname to IP mapping
+        switches = load_topology()
+        #get the IP address of S1
+        curr_ip_address = switches['S1']
+        while True:
+            ssh_connection = netmiko_connection(curr_ip_address)
+            stp_info = ssh_connection.send_command("show spanning-tree")
+            #splitting the output of the "show sp" command by newline
+            sp_output = stp_info.split('\n')
+            #retrie cost
+            cost = sp_output[4].strip().split()[1]
+            #retrieve forwarding port to the root switch
+            port = sp_output[5].strip().split()[1]
+            next_interface = "Fas0/"+port[0:port.index('(')]
+            next_interface1 = "Fa0/"+port[0:port.index('(')]
+            #based on the STP cost if cost is equal to the values in the set that means this switch is connected to the root switch
+            if int(cost) in {2,4,19,100}:
+                ssh_connection.enable()
+                #enabling root guard to the rouge switch
+                ssh_connection.send_config_set(["interface {}".format(next_interface1), "spanning-tree guard root"])
+                #sending message to cisco webex
+                message = "Blocked the rouge switch connected to {0} on interface {1}".format(hostname, next_interface1)
+                send_message(message, ROOMID, TOKEN)
+                break
+            #if cost is different than the set
+            else:
+                neighbors = ssh_connection.send_command("show cdp neighbors")
+                #splitting the result and retrieving info about the neighbours
+                neighbor_interfaces = neighbors.split('\n')[3:]
+                for i in neighbor_interfaces:
+                    #retrieving only local interfaces of the neighbours
+                    int1= ''.join(i.split()[1:3])
+                    #if the neigbour interface is the same as the one that leads to the root 
+                    if int1 == next_interface:
+                        #returns the hostname of the switch it needs to connect next
+                        hostname = i.split()[0]
+                        curr_ip_address = switches[hostname]
+    else:
         content = json_load('devices.json')
-        #retrieving IP addresses and bridge priorities of all switches in the topology
+        #create a list of the IP adressess and bridge priority of the switches
         switches = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
         for device in switches:
-            #creating connection to each switch
+        #creating connection to my VM router in the final version it will look: ssh_connection = netmiko_connection(ip_address)
             ssh_connection = netmiko_connection(device[0])
             stp_info = ssh_connection.send_command("show spanning-tree")
-            n_bridge = re.search("Bridge.+(\d)", stp_info).split()[3]
+            n_bridge = re.search("Bridge.+(\d)").split()[3]
             if n_bridge != device[1]:
                 ssh_connection.send_config_set(["spanning-tree vlan 1 priority {0}".format(device[1])])
                 message = "Set STP priority back to {0} on {1}".format(device[1], device[0])

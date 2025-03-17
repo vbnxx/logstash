@@ -69,7 +69,7 @@ def mac_to_ip(log: str) -> str:
         if mac in i.values():
             return i['ip_address']
 
-def load_topology():
+def load_topology() -> dict:
     content = json_load('devices.json')
     dic = {}
 
@@ -104,11 +104,10 @@ if not ip:
                     #returns the hostname of the switch it needs to connect next
                     hostname = i.split()[0]
                     curr_ip_address = switches[hostname]
-
-    
-    """content = json_load('devices.json')
-    x = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
-    for device in x:
+else:
+    content = json_load('devices.json')
+    switches = [(device['ip_address'], device['bridge_priority']) for device in content if device["hostname"][0] == "S"]
+    for device in switches:
        #creating connection to my VM router in the final version it will look: ssh_connection = netmiko_connection(ip_address)
         ssh_connection = netmiko_connection(device[0])
         stp_info = ssh_connection.send_command("show spanning-tree")
@@ -116,7 +115,8 @@ if not ip:
         if n_bridge != device[1]:
             ssh_connection.send_config_set(["spanning-tree vlan 1 priority {0}".format(device[1])])
             message = "Set STP priority back to {0} on {1}".format(device[1], device[0])
-            send_message(message, ROOMID, TOKEN)"""
+            send_message(message, ROOMID, TOKEN)
+    
 
 
 
