@@ -175,57 +175,12 @@ def NTP(host, port):
     # send an action here to the library
     print('Reseting the time on a NTP server "%s:%s".' % (host, port))
 
-def DHCP(host, port):
-    # send an action here to the library
-    print('Reseting the time on a DHCP server "%s:%s".' % (host, port))
 
 events_and_actions = {
     'state to up' : shut_int,
     'state to down': up_int,
     'Root bridge' : STP_config,
-    'synchronized to NTP' : NTP,
-    'DHCP' : DHCP
+    'synchronized to NTP' : NTP
+
 }
 
-class WebServer(BaseHTTPRequestHandler):
-    def response_with(self, status, message):
-        self.send_response(status)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()  
-        self.wfile.write(json.dumps({'message': message}).encode('utf-8'))
-
-    def do_POST(self):
-        try:
-            if self.path == "/log":
-                content_length = int(self.headers.get('Content-Length'))  # Get the size of the data
-                request_body = self.rfile.read(content_length)  # Read the body
-                log = json.loads(request_body.decode('utf-8'))
-
-                if log['level'] == 'critical':
-                    if log['type'] in events_and_actions:
-                        action = events_and_actions[log['type']]
-                        print('Critical log type "%s" acknowledged. Preforming action "%s"' % (log['type'], action.__name__))
-                        action(log['host'], log['port'])
-                    else:
-                        print('Critical log type "%s" not supported. Ignoring...' % log['type'])
-                else:
-                        print('Log type "%s" processed...' % log['type'])
-
-                self.response_with(201, 'Log received successfully')
-            else:
-                self.response_with(404, 'Not found.')
-
-        except Exception as e:
-            print(e)
-            self.response_with(500, 'Internal Server Error')
-
-if __name__ == '__main__':
-    webServer = HTTPServer((HOSTNAME, PORT), WebServer)
-
-    try:
-        print('Server awaiting requests at http://%s:%s.' % (HOSTNAME, PORT))
-        webServer.serve_forever()
-    except KeyboardInterrupt:
-        pass
-
-    webServer.server_close()

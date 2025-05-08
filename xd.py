@@ -34,7 +34,7 @@ while True:
 
 """
 
-x = """VLAN0001
+stp_info = """VLAN0001
   Spanning tree enabled protocol ieee
   Root ID    Priority    1
              Address     000B.BE52.05EA
@@ -52,11 +52,15 @@ Interface        Role Sts Cost      Prio.Nbr Type
 Fa0/3            Desg FWD 19        128.3    P2p
 Fa0/2            Desg FWD 19        128.2    P2p
 Fa0/10           Root FWD 19        128.10   P2p"""
-y = """Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
+
+cdp_info = """Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
                   S - Switch, H - Host, I - IGMP, r - Repeater, P - Phone
 Device ID    Local Intrfce   Holdtme    Capability   Platform    Port ID
 S2           Fas 0/6          142            S       2960        Fas 0/5
 S3           Fas 0/10          125            S       2960        Fas 0/2"""
+
+
+
 n1 = x.split('\n')
 n = y.split('\n')[3:]
 port = n1[5].strip().split()[1]
